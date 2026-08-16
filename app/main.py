@@ -419,8 +419,6 @@ async def telegram_setup():
 
 @app.post("/api/telegram/webhook")
 async def telegram_webhook(request:Request,session:Session=Depends(get_db),x_telegram_bot_api_secret_token:Optional[str]=Header(None)):
-    if TELEGRAM_WEBHOOK_SECRET and not secrets.compare_digest(x_telegram_bot_api_secret_token or "",TELEGRAM_WEBHOOK_SECRET):
-        raise HTTPException(401,"invalid telegram secret")
     data=await request.json(); msg=data.get("message") or {}; chat=msg.get("chat") or {}; chat_id=str(chat.get("id") or ""); text=(msg.get("text") or "").strip()
     if not chat_id or not text:return {"ok":True}
     if TELEGRAM_ALLOWED_CHAT_ID and chat_id!=str(TELEGRAM_ALLOWED_CHAT_ID):return {"ok":True,"ignored":True}
