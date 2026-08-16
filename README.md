@@ -1,39 +1,32 @@
-# Sofyan OS v2 Full
+# Sofyan OS v3 — Ecosystem
 
-Satu deployment untuk:
-1. Inbox universal
-2. Task & Highlight LuTug
-3. Project
-4. Dependencies
-5. Finance
-6. Debt Exit
-7. CRM STIFIn
-8. CRM IZINHUKUM
-9. Content / Branding
-10. Knowledge / E-course
-11. Telegram capture
-12. AI classification opsional
-13. Executive summary API
+Paket ini adalah upgrade dari v2 Full.
+
+Termasuk:
+- Sofyan OS app
+- PostgreSQL
+- Inbox/Task/Highlight/Project/Dependencies
+- Finance & Debt Exit
+- CRM STIFIn + IZINHUKUM
+- Content/Branding
+- Knowledge/E-course
+- Telegram
+- AI classification
+- StarSender inbound
+- API untuk n8n
+- 6 workflow n8n siap import
+- integrasi architecture docs
 
 ## Upgrade
-Upload seluruh isi repo ini menggantikan repo lama, lalu redeploy di Coolify.
+Upload seluruh isi repo ke GitHub yang sama lalu Redeploy di Coolify.
+Jangan hapus volume PostgreSQL.
 
-Environment baru yang perlu ditambahkan:
-```env
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4.1-mini
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_ALLOWED_CHAT_ID=
-TELEGRAM_WEBHOOK_SECRET=buat-random-sendiri
-TELEGRAM_WEBHOOK_URL=https://app.ruanglegalitas.com/api/telegram/webhook
-```
+## Setelah redeploy
+1. Tambahkan env Telegram/OpenAI bila belum.
+2. Import seluruh JSON dari `n8n-workflows/`.
+3. Set env n8n sesuai `docs/INTEGRATIONS.md`.
+4. Arahkan StarSender webhook ke workflow n8n StarSender.
 
-Setelah redeploy:
-- App tetap di port 8080.
-- Data PostgreSQL lama tetap memakai volume lama jika service/volume deployment tidak dihapus.
-- Aktifkan Telegram webhook melalui `POST /api/telegram/setup` dengan header `X-API-Key`.
-
-Endpoint n8n:
-- `GET /api/daily-review`
-- `GET /api/executive-summary`
-- `POST /api/capture`
+Baca:
+- `docs/OPERATING-SYSTEM.md`
+- `docs/INTEGRATIONS.md`

@@ -455,3 +455,137 @@ def executive_summary(session:Session=Depends(get_db)):
         "cashflow":income-expense-debt_paid,
         "debt_balance":debt_balance
     }
+
+
+@app.post("/api/finance", dependencies=[Depends(api_guard)])
+async def api_finance(request: Request, session: Session = Depends(get_db)):
+    data = await request.json()
+    typ = data.get("type")
+    if typ not in {"income","expense","debt_payment"}:
+        raise HTTPException(400, "type invalid")
+    area = session.scalar(select(Area).where(Area.code == data.get("area","personal")))
+    if not area:
+        raise HTTPException(400, "area invalid")
+    try:
+        amount = Decimal(str(data.get("amount")))
+    except Exception:
+        raise HTTPException(400, "amount invalid")
+    tx = FinanceTransaction(
+        type=typ, amount=amount, area_id=area.id,
+        category=data.get("category"), description=data.get("description")
+    )
+    session.add(tx); session.commit()
+    return {"ok":True,"id":tx.id}
+
+@app.post("/api/crm/upsert", dependencies=[Depends(api_guard)])
+async def api_crm_upsert(request: Request, session: Session = Depends(get_db)):
+    data = await request.json()
+    area = session.scalar(select(Area).where(Area.code == data.get("area","izinhukum")))
+    if not area: raise HTTPException(400, "area invalid")
+    phone = (data.get("phone") or "").strip()
+    name = (data.get("name") or phone or "Tanpa Nama").strip()
+    q = select(Contact).where(Contact.area_id == area.id)
+    if phone:
+        q = q.where(Contact.phone == phone)
+    else:
+        q = q.where(Contact.name == name)
+    c = session.scalar(q)
+    if not c:
+        c = Contact(area_id=area.id, name=name, phone=phone or None)
+        session.add(c)
+    c.contact_type = data.get("contact_type", c.contact_type or "lead")
+    c.stage = data.get("stage", c.stage or "new")
+    c.notes = data.get("notes", c.notes)
+    if data.get("next_followup"):
+        try: c.next_followup = datetime.fromisoformat(data["next_followup"])
+        except: pass
+    session.commit()
+    return {"ok":True,"id":c.id}
+
+@app.post("/api/content", dependencies=[Depends(api_guard)])
+async def api_content(request: Request, session: Session = Depends(get_db)):
+    data = await request.json()
+    area = session.scalar(select(Area).where(Area.code == data.get("area","personal")))
+    if not area: raise HTTPException(400, "area invalid")
+    item = ContentItem(
+        area_id=area.id,
+        title=(data.get("title") or "Untitled").strip(),
+        channel=data.get("channel"),
+        status=data.get("status","idea"),
+        draft=data.get("draft")
+    )
+    session.add(item); session.commit()
+    return {"ok":True,"id":item.id}
+
+@app.post("/api/knowledge", dependencies=[Depends(api_guard)])
+async def api_knowledge(request: Request, session: Session = Depends(get_db)):
+    data = await request.json()
+    area = None
+    if data.get("area"):
+        area = session.scalar(select(Area).where(Area.code == data["area"]))
+    item = KnowledgeItem(
+        area_id=area.id if area else None,
+        title=(data.get("title") or "Catatan").strip(),
+        content=(data.get("content") or "").strip(),
+        category=data.get("category")
+    )
+    if not item.content: raise HTTPException(400, "content required")
+    session.add(item); session.commit()
+    return {"ok":True,"id":item.id}
+
+@app.post("/api/starsender/inbound")
+async def starsender_inbound(request: Request, session: Session = Depends(get_db)):
+    # Endpoint ini sengaja menerima payload StarSender langsung.
+    data = await request.json()
+    message = (data.get("message") or "").strip()
+    sender = str(data.get("from") or "").strip()
+    device_name = str(data.get("device_name") or data.get("device") or "").lower()
+    push_name = (data.get("push_name") or sender or "Lead WhatsApp").strip()
+    if not message:
+        return {"ok":True,"ignored":True}
+
+    if "stifin" in device_name:
+        area_code = "stifin"
+    elif any(x in device_name for x in ["izin","legal","hukum"]):
+        area_code = "izinhukum"
+    else:
+        area_code = "personal"
+
+    area = session.scalar(select(Area).where(Area.code == area_code))
+
+    # Business WhatsApp becomes CRM contact + captured inbox item.
+    if area_code in {"stifin","izinhukum"}:
+        contact = session.scalar(select(Contact).where(Contact.area_id==area.id, Contact.phone==sender))
+        if not contact:
+            contact = Contact(
+                area_id=area.id, name=push_name, phone=sender,
+                contact_type="lead", stage="new",
+                notes=f"Masuk dari StarSender. Pesan terakhir: {message[:500]}"
+            )
+            session.add(contact)
+        else:
+            contact.notes = f"Pesan terakhir: {message[:500]}"
+        item = InboxItem(
+            area_id=area.id, raw_text=f"WA {push_name} ({sender}): {message}",
+            source="whatsapp", status="unprocessed"
+        )
+        ai = _ai_classify(message)
+        if ai:
+            item.ai_type = ai.get("type"); item.ai_title = ai.get("title")
+        session.add(item); session.commit()
+        return {"ok":True,"area":area_code,"contact_id":contact.id,"inbox_id":item.id}
+
+    item = InboxItem(area_id=area.id, raw_text=f"WA {push_name}: {message}", source="whatsapp")
+    session.add(item); session.commit()
+    return {"ok":True,"area":"personal","inbox_id":item.id}
+
+@app.get("/api/crm/followups", dependencies=[Depends(api_guard)])
+def api_crm_followups(session: Session = Depends(get_db)):
+    now = datetime.now()
+    rows = session.scalars(
+        select(Contact).where(Contact.next_followup != None, Contact.next_followup <= now + timedelta(days=1))
+        .order_by(Contact.next_followup.asc())
+    ).all()
+    amap = area_name_map(session)
+    return [{"id":c.id,"name":c.name,"phone":c.phone,"area":amap.get(c.area_id),"stage":c.stage,
+             "next_followup":c.next_followup.isoformat() if c.next_followup else None} for c in rows]
