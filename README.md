@@ -1,12 +1,25 @@
-Sofyan OS Release 1 Update
+# Sofyan OS v1 - LuTug Personal System
 
-Isi:
-- Telegram inbox foundation
-- Finance parser foundation
-- Environment template
+Single user personal task execution system.
 
-Langkah:
-1. Upload ke repository GitHub.
-2. Redeploy Coolify.
-3. Isi ENV.
-4. Tes Telegram webhook.
+## Stack
+- Next.js frontend
+- PostgreSQL database
+- n8n automation
+- Docker/Coolify deployment
+
+## Flow
+Telegram -> n8n -> PostgreSQL -> Web Dashboard
+
+## Modules
+- Inbox (Tangkap)
+- Processing (Putuskan)
+- Today Highlight
+- Projects
+- History
+
+## Deploy
+1. Upload repository to GitHub
+2. Connect repository in Coolify
+3. Setup environment variables
+4. Deploy PostgreSQL, n8n, and app

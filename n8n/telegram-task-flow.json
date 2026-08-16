@@ -1,0 +1,19 @@
+{
+  "name": "Telegram Task Capture",
+  "nodes": [
+    {
+      "name": "Telegram Trigger",
+      "type": "telegramTrigger"
+    },
+    {
+      "name": "Create Task",
+      "type": "postgres",
+      "operation": "insert"
+    },
+    {
+      "name": "Reply Confirmation",
+      "type": "telegram",
+      "message": "Task masuk Inbox ✅"
+    }
+  ]
+}
