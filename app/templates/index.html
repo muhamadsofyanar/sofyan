@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{app_name}}</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1180px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:16px}
+h1{margin:0;font-size:28px}.sub,.muted{color:var(--muted);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+.stat b{display:block;font-size:21px;margin-top:4px}.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}.stack{display:grid;gap:8px}
+.section-title{font-size:16px;margin:0 0 10px}.item{border:1px solid var(--line);border-radius:10px;padding:11px}.highlight{border:2px solid #111827}
+form.row{display:grid;grid-template-columns:1fr 160px 90px;gap:8px}input,select,button{font:inherit}input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:white}
+button{padding:8px 10px;border:0;border-radius:8px;background:var(--accent);color:white;cursor:pointer}.ghost{background:#eef0f3;color:#111827}.danger{background:#7f1d1d}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.mini{font-size:12px;padding:6px 8px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.logout{background:none;color:#374151;padding:0}.pill{display:inline-block;background:#f3f4f6;border-radius:999px;padding:3px 7px;font-size:11px;margin-right:4px}
+@media(max-width:820px){.stats,.grid,.two{grid-template-columns:1fr}.top{align-items:start}.top .right{display:none}form.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="wrap">
+<div class="top"><div><h1>{{app_name}}</h1><div class="sub">Tangkap → Putuskan → Jadwalkan → Highlight.</div></div>
+<form method="post" action="/logout"><button class="logout">Keluar</button></form></div>
+
+<div class="stats">
+<div class="card stat"><span class="muted">Highlight</span><b>{{highlights|length}} / 3</b></div>
+<div class="card stat"><span class="muted">Inbox</span><b>{{inbox|length}}</b></div>
+<div class="card stat"><span class="muted">Cashflow</span><b>{{rupiah(income-expense-debt_paid)}}</b></div>
+<div class="card stat"><span class="muted">Utang tersisa</span><b>{{rupiah(debt_balance)}}</b></div>
+</div>
+
+<div class="grid">
+<div class="stack">
+<div class="card"><h2 class="section-title">Tangkap cepat</h2>
+<form class="row" method="post" action="/capture">
+<input name="text" placeholder="Tulis apa pun yang sedang ada di kepala..." required>
+<select name="area_id"><option value="">Belum ditentukan</option>{% for a in areas %}<option value="{{a.id}}">{{a.name}}</option>{% endfor %}</select>
+<button>Simpan</button></form></div>
+
+<div class="card"><h2 class="section-title">Highlight hari ini</h2><div class="stack">
+{% for t in highlights %}
+<div class="item highlight"><b>{{t.title}}</b><div class="muted">Beban {{t.mental_load}}/3{% if t.scheduled_date %} · {{t.scheduled_date}}{% endif %}</div>
+<div class="actions"><form method="post" action="/tasks/{{t.id}}/done"><button class="mini">Selesai</button></form>
+<form method="post" action="/tasks/{{t.id}}/toggle-highlight"><button class="mini ghost">Lepas</button></form></div></div>
+{% else %}<div class="muted">Belum ada highlight.</div>{% endfor %}</div></div>
+
+<div class="card"><h2 class="section-title">Task aktif</h2><div class="stack">
+{% for t in tasks %}{% if not t.is_highlight %}
+<div class="item"><b>{{t.title}}</b><div class="muted">{{t.status}} · beban {{t.mental_load}}/3{% if t.scheduled_date %} · {{t.scheduled_date}}{% endif %}</div>
+<div class="actions"><form method="post" action="/tasks/{{t.id}}/toggle-highlight"><button class="mini">Highlight</button></form>
+<form method="post" action="/tasks/{{t.id}}/done"><button class="mini ghost">Selesai</button></form></div></div>
+{% endif %}{% else %}<div class="muted">Belum ada task aktif.</div>{% endfor %}
+</div></div>
+</div>
+
+<div class="stack">
+<div class="card"><h2 class="section-title">Inbox</h2><div class="stack">
+{% for x in inbox %}
+<div class="item">{{x.raw_text}}<div class="muted">{{x.source}} · {{x.created_at.strftime('%d-%m %H:%M')}}</div>
+<div class="actions">
+<form method="post" action="/inbox/{{x.id}}/to-task"><button class="mini">Jadi task</button></form>
+<form method="post" action="/inbox/{{x.id}}/someday"><button class="mini ghost">Someday</button></form>
+<form method="post" action="/inbox/{{x.id}}/delete"><button class="mini danger">Buang</button></form>
+</div></div>
+{% else %}<div class="muted">Inbox kosong.</div>{% endfor %}
+</div></div>
+
+<div class="card"><h2 class="section-title">Tambah task</h2>
+<form method="post" action="/tasks" class="stack">
+<input name="title" placeholder="Task konkret" required>
+<select name="area_id" required>{% for a in areas %}<option value="{{a.id}}">{{a.name}}</option>{% endfor %}</select>
+<input type="date" name="scheduled_date">
+<select name="mental_load"><option value="1">Ringan</option><option value="2">Sedang</option><option value="3">Berat</option></select>
+<button>Tambah task</button></form></div>
+</div>
+</div>
+
+<div class="two">
+<div class="card"><h2 class="section-title">Keuangan</h2>
+<div class="muted">Masuk {{rupiah(income)}} · Keluar {{rupiah(expense)}} · Bayar utang {{rupiah(debt_paid)}}</div>
+<form method="post" action="/finance" class="stack" style="margin-top:10px">
+<select name="type"><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option><option value="debt_payment">Bayar utang</option></select>
+<input type="number" min="0" step="1" name="amount" placeholder="Nominal" required>
+<select name="area_id" required>{% for a in areas %}<option value="{{a.id}}">{{a.name}}</option>{% endfor %}</select>
+<input name="category" placeholder="Kategori"><input name="description" placeholder="Catatan">
+<button>Catat transaksi</button></form></div>
+
+<div class="card"><h2 class="section-title">Debt Exit</h2>
+<div class="stack">{% for d in debts %}<div class="item"><b>{{d.name}}</b><div class="muted">Sisa {{rupiah(d.current_balance)}}</div></div>
+{% else %}<div class="muted">Belum ada data utang.</div>{% endfor %}</div>
+<form method="post" action="/debts" class="stack" style="margin-top:10px">
+<input name="name" placeholder="Nama/kategori utang" required>
+<input type="number" step="1" name="original_amount" placeholder="Nominal awal" required>
+<input type="number" step="1" name="current_balance" placeholder="Sisa saat ini" required>
+<input name="notes" placeholder="Catatan"><button>Tambah utang</button></form></div>
+</div>
+
+<div class="two">
+<div class="card"><h2 class="section-title">Project aktif</h2>
+<div class="stack">{% for p in projects %}<div class="item"><b>{{p.name}}</b>{% if p.desired_outcome %}<div class="muted">{{p.desired_outcome}}</div>{% endif %}</div>
+{% else %}<div class="muted">Belum ada project aktif.</div>{% endfor %}</div>
+<form method="post" action="/projects" class="stack" style="margin-top:10px">
+<input name="name" placeholder="Nama project" required>
+<select name="area_id" required>{% for a in areas %}<option value="{{a.id}}">{{a.name}}</option>{% endfor %}</select>
+<input name="desired_outcome" placeholder="Hasil konkret yang ingin tercapai"><button>Tambah project</button></form></div>
+
+<div class="card"><h2 class="section-title">Arah v1</h2>
+<div class="item"><b>Pribadi</b><div class="muted">Keluarga, kuliah, Al-Qur'an, administrasi pribadi.</div></div>
+<div class="item"><b>STIFIn</b><div class="muted">Promotor, ekosistem, penjualan, pengembangan jaringan.</div></div>
+<div class="item"><b>IZINHUKUM</b><div class="muted">Lead, closing, operasional legalitas, cashflow.</div></div>
+</div>
+</div>
+</div></body></html>
