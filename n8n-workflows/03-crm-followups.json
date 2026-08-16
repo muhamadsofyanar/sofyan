@@ -1,0 +1,103 @@
+{
+  "name": "Sofyan OS - CRM Followups",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            },
+            {
+              "triggerAtHour": 15,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "CRM Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SOFYAN_OS_URL + '/api/crm/followups'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$env.SOFYAN_OS_API_KEY}}"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Get Followups",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{'https://api.telegram.org/bot' + $env.TELEGRAM_BOT_TOKEN + '/sendMessage'}}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({chat_id:$env.TELEGRAM_CHAT_ID,text:'Follow-up CRM\\n'+($json.length ? $json.map(x=>'\u2022 ['+x.area+'] '+x.name+' \u00b7 '+x.stage).join('\\n') : 'Tidak ada yang jatuh tempo.')}) }}"
+      },
+      "id": "3",
+      "name": "Notify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "CRM Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Followups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Followups": {
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "00000000-0000-0000-0000-000000000001",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
