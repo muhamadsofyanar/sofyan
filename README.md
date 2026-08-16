@@ -1,25 +1,24 @@
 # Sofyan OS v1 - LuTug Personal System
 
-Single user personal task execution system.
-
-## Stack
-- Next.js frontend
-- PostgreSQL database
-- n8n automation
-- Docker/Coolify deployment
-
-## Flow
+Personal task execution system:
 Telegram -> n8n -> PostgreSQL -> Web Dashboard
 
-## Modules
+Modules:
 - Inbox (Tangkap)
 - Processing (Putuskan)
 - Today Highlight
 - Projects
 - History
 
-## Deploy
-1. Upload repository to GitHub
-2. Connect repository in Coolify
-3. Setup environment variables
-4. Deploy PostgreSQL, n8n, and app
+Deploy target:
+- Coolify
+- Docker
+- PostgreSQL
+
+## Services
+1. postgres
+2. n8n
+3. web app
+
+## Environment
+Copy .env.example to .env and fill values.

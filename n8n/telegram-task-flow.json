@@ -7,13 +7,12 @@
     },
     {
       "name": "Create Task",
-      "type": "postgres",
-      "operation": "insert"
+      "type": "postgres"
     },
     {
-      "name": "Reply Confirmation",
-      "type": "telegram",
-      "message": "Task masuk Inbox ✅"
+      "name": "Reply Success",
+      "type": "telegram"
     }
-  ]
+  ],
+  "connections": "Telegram -> Database -> Reply"
 }
